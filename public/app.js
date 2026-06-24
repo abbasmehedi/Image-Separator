@@ -169,10 +169,8 @@ stage.on('mouseup touchend', () => { isDraggingStage = false; });
 document.getElementById('btn-zoom-in').addEventListener('click', () => updateZoom(1.2));
 document.getElementById('btn-zoom-out').addEventListener('click', () => updateZoom(0.8));
 document.getElementById('btn-fit').addEventListener('click', fitToScreen);
-document.getElementById('btn-reset-zoom').addEventListener('click', () => { stage.scale({ x: 1, y: 1 }); stage.batchDraw(); });
 document.getElementById('btn-rot-left').addEventListener('click', () => rotate(-90));
 document.getElementById('btn-rot-right').addEventListener('click', () => rotate(90));
-document.getElementById('btn-rot-reset').addEventListener('click', () => { rotationAngle = 0; applyRotationCoordinates(); fitToScreen(); });
 document.getElementById('btn-arrange-boxes').addEventListener('click', () => { if(!isCropMode) generateBoxes(); });
 document.getElementById('btn-clear-boxes').addEventListener('click', () => { if(!isCropMode) { boxLayer.find('.boxGroup').forEach(b=>b.destroy()); boxLayer.draw(); } });
 

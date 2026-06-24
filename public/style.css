@@ -1,0 +1,61 @@
+:root {
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --bg: #f8fafc;
+  --panel-bg: #ffffff;
+  --border: #cbd5e1;
+  --text: #1e293b;
+  --danger: #ef4444;
+  --success: #22c55e;
+  --accent: #8b5cf6;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+
+body { background-color: var(--bg); color: var(--text); padding: 20px; line-height: 1.5; }
+header { text-align: center; margin-bottom: 24px; }
+header h1 { font-size: 2rem; color: #0f172a; }
+
+.container { max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+.hidden { display: none !important; }
+
+/* Upload Styles */
+.drop-zone { border: 3px dashed var(--border); padding: 40px; text-align: center; background: var(--panel-bg); border-radius: 12px; cursor: pointer; transition: border-color 0.2s; }
+.drop-zone.dragover { border-color: var(--primary); background: #eff6ff; }
+.drop-zone p { font-size: 1.1rem; margin-bottom: 12px; color: #64748b; }
+.file-label { background: var(--primary); color: white; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 500; display: inline-block; }
+.file-label:hover { background: var(--primary-hover); }
+#file-input { display: none; }
+
+.progress-container { width: 100%; background: #e2e8f0; height: 12px; border-radius: 6px; overflow: hidden; margin-top: 12px; }
+.progress-bar { width: 0%; height: 100%; background: var(--success); transition: width 0.1s linear; }
+.error-message { color: white; background: var(--danger); padding: 12px; border-radius: 6px; font-weight: bold; margin-top: 12px; text-align: center; }
+
+/* Toolbar elements */
+.toolbar { background: var(--panel-bg); padding: 12px; border-radius: 8px; border: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: center; }
+.toolbar .group { display: flex; gap: 8px; flex-wrap: wrap; }
+button { background: #e2e8f0; color: var(--text); border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.9rem; transition: background 0.2s; }
+button:hover { background: #cbd5e1; }
+button.accent { background: var(--accent); color: white; }
+button.accent:hover { background: #7c3aed; }
+button.danger { background: var(--danger); color: white; }
+button.danger:hover { background: #dc2626; }
+button.success-btn { background: var(--success); color: white; font-size: 1.2rem; padding: 14px 28px; width: 100%; border-radius: 8px; font-weight: bold; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+button.success-btn:hover { background: #16a34a; }
+
+/* Workspace Canvas container */
+.canvas-wrapper { width: 100%; height: 650px; background: #0f172a; border-radius: 12px; overflow: hidden; position: relative; border: 1px solid var(--border); margin: 16px 0; }
+#konva-container { width: 100%; height: 100%; cursor: grab; }
+#konva-container:active { cursor: grabbing; }
+
+/* Summary panel styling */
+.summary-panel { background: var(--panel-bg); border: 1px solid var(--border); border-radius: 8px; padding: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px; }
+.summary-item { font-size: 1.1rem; }
+.summary-item strong { font-size: 1.3rem; color: var(--primary); }
+
+/* Responsive grid view layout */
+.preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 16px; }
+.preview-card { background: var(--panel-bg); border: 1px solid var(--border); padding: 12px; border-radius: 8px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.preview-card span { font-weight: bold; color: #475569; font-size: 0.85rem; }
+.preview-card img { width: 50px; height: 50px; image-rendering: pixelated; border: 1px solid #94a3b8; background: #f1f5f9; }
+.preview-card p { font-size: 0.7rem; color: #64748b; word-break: break-all; }

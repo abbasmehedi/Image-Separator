@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image Separator Canvas Workspace</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://unpkg.com/konva@9.3.15/konva.min.js"></script>
+</head>
+<body>
+
+  <header>
+    <h1>Image Separator Web Application</h1>
+  </header>
+
+  <main class="container">
+    <!-- Top Configuration Area -->
+    <section class="upload-section" id="upload-area">
+      <div id="drop-zone" class="drop-zone">
+        <p>Drag & Drop Image Here or</p>
+        <label class="file-label">
+          Browse File
+          <input type="file" id="file-input" accept="image/*,.heic,.HEIC">
+        </label>
+      </div>
+      <div id="progress-container" class="progress-container hidden">
+        <div id="progress-bar" class="progress-bar"></div>
+      </div>
+      <div id="error-message" class="error-message hidden"></div>
+    </section>
+
+    <!-- App controls and Canvas Workspace wrapper -->
+    <section class="workspace-section hidden" id="workspace-area">
+      <div class="toolbar">
+  <div class="group">
+    <button id="btn-zoom-in" title="Zoom In">🔍+ Zoom In</button>
+    <button id="btn-zoom-out" title="Zoom Out">🔍- Zoom Out</button>
+    <button id="btn-fit" title="Fit to Screen">🖥️ Fit</button>
+    <button id="btn-reset-zoom" title="Reset Scale">🔄 Reset Zoom</button>
+  </div>
+  <div class="group">
+    <button id="btn-rot-left" class="warn">↺ Rotate Left</button>
+    <button id="btn-rot-right" class="warn">↻ Rotate Right</button>
+    <button id="btn-rot-reset">Reset Rotation</button>
+  </div>
+  <div class="group" style="background: #fffbeb; padding: 4px 8px; border-radius: 6px; border: 1px solid #fef08a;">
+    <button id="btn-crop-mode" class="accent" style="background-color: #d97706;">✂️ Crop Image</button>
+    <button id="btn-crop-apply" class="danger hidden" style="background-color: #22c55e;">✅ Apply Crop</button>
+  </div>
+  <div class="group" style="display: flex; align-items: center; gap: 8px; background: #f1f5f9; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border);">
+    <label for="box-global-size" style="font-weight: bold; font-size: 0.85rem; color: var(--text);">Box Size (PX):</label>
+    <input type="number" id="box-global-size" value="50" min="25" max="500" style="width: 60px; padding: 4px; border: 1px solid var(--border); border-radius: 4px; text-align: center;">
+  </div>
+  <div class="group">
+    <button id="btn-arrange-boxes" class="accent">Auto Arrange Grid</button>
+    <button id="btn-clear-boxes" class="danger">Reset Boxes</button>
+  </div>
+</div>
+
+      <div class="canvas-wrapper">
+        <div id="konva-container"></div>
+      </div>
+
+      <div class="action-footer">
+        <button id="btn-process" class="success-btn">Process Images (Show Preview)</button>
+      </div>
+    </section>
+
+    <!-- Metrics Results Panel -->
+    <section class="results-section hidden" id="results-area">
+      <h2>Processing Preview</h2>
+      <div id="summary-panel" class="summary-panel"></div>
+      
+      <div class="action-footer" style="margin-bottom: 20px;">
+        <button id="btn-save" class="success-btn" style="background-color: #8b5cf6;">Confirm & Save Locally</button>
+      </div>
+
+      <h2>Generated Image Output Grid (25x25)</h2>
+      <div id="preview-grid" class="preview-grid"></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

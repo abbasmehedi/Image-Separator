@@ -12,7 +12,6 @@ const PORT = 3005;
 
 app.use(cors());
 
-// পেলোড লিমিট সর্বোচ্চ বাড়ানো হলো যেন মেমোরি বাফারে সমস্যা না হয়
 app.use(express.json({ limit: '2000mb' }));
 app.use(express.urlencoded({ limit: '2000mb', extended: true, parameterLimit: 1000000 }));
 
@@ -21,7 +20,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 const storage = multer.memoryStorage();
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 500 * 1024 * 1024 } // ৫০০ মেগাবাইট পর্যন্ত ফাইল সাপোর্ট
+  limits: { fileSize: 500 * 1024 * 1024 }
 });
 
 app.get('/health', (req, res) => res.json({ success: true, status: 'UP' }));

@@ -3,6 +3,7 @@ let currentImageData = null;
 let rotationAngle = 0; 
 let lastProcessedPayload = null; 
 let globalBoxSize = 50; 
+let originalImageData = null;
 
 let isCropMode = false;
 let cropRect = null;
@@ -88,6 +89,10 @@ function handleFileSelection(file) {
 }
 
 function initWorkspace(data) {
+  if (!originalImageData) {
+    originalImageData = data;
+  }
+
   currentImageData = data;
   rotationAngle = 0;
   lastProcessedPayload = null;
@@ -106,11 +111,8 @@ function initWorkspace(data) {
     if (currentImageObj) currentImageObj.destroy();
     
     currentImageObj = new Konva.Image({ 
-      x: 0, 
-      y: 0, 
-      image: img, 
-      width: data.width, 
-      height: data.height, 
+      x: 0, y: 0, image: img, 
+      width: data.width, height: data.height, 
       id: 'backgroundImage' 
     });
 
@@ -188,19 +190,45 @@ document.getElementById('box-global-size').addEventListener('input', (e) => {
 document.getElementById('btn-crop-mode').addEventListener('click', () => {
   const applyBtn = document.getElementById('btn-crop-apply');
   const cropModeBtn = document.getElementById('btn-crop-mode');
+  
   if (!isCropMode) {
-    isCropMode = true; cropModeBtn.textContent = "❌ Cancel Crop"; applyBtn.classList.remove('hidden');
+    if (currentImageData !== originalImageData) {
+      const goBack = confirm("Do you want to revert to the original uncropped image?");
+      if (goBack) {
+        initWorkspace(originalImageData); 
+        return;
+      }
+    }
+
+    isCropMode = true; 
+    cropModeBtn.textContent = "❌ Cancel Crop"; 
+    applyBtn.classList.remove('hidden');
+    
     boxLayer.find('.boxGroup').forEach(b => b.destroy());
+    
     cropRect = new Konva.Rect({
-      x: currentImageData.width * 0.2, y: currentImageData.height * 0.2,
-      width: currentImageData.width * 0.6, height: currentImageData.height * 0.6,
-      fill: 'rgba(217, 119, 6, 0.15)', stroke: '#d97706', strokeWidth: 3, dash: [6, 6], draggable: true, id: 'cropRect'
+      x: currentImageData.width * 0.2, 
+      y: currentImageData.height * 0.2,
+      width: currentImageData.width * 0.6, 
+      height: currentImageData.height * 0.6,
+      fill: 'rgba(217, 119, 6, 0.15)', 
+      stroke: '#d97706', 
+      strokeWidth: 3, 
+      dash: [6, 6], 
+      draggable: true, 
+      id: 'cropRect'
     });
-    boxLayer.add(cropRect); cropTransformer.nodes([cropRect]); boxLayer.draw();
+    
+    boxLayer.add(cropRect); 
+    cropTransformer.nodes([cropRect]); 
+    boxLayer.draw();
   } else {
-    isCropMode = false; cropModeBtn.textContent = "✂️ Crop Image"; applyBtn.classList.add('hidden');
+    isCropMode = false; 
+    cropModeBtn.textContent = "✂️ Crop Image"; 
+    applyBtn.classList.add('hidden');
     if (cropRect) { cropRect.destroy(); cropRect = null; }
-    cropTransformer.nodes([]); boxLayer.draw();
+    cropTransformer.nodes([]); 
+    boxLayer.draw();
   }
 });
 
@@ -325,7 +353,7 @@ document.getElementById('btn-save').addEventListener('click', async () => {
 });
 
 function resetAppToInitialState() {
-  currentImageObj = null; currentImageData = null; rotationAngle = 0; lastProcessedPayload = null; isCropMode = false;
+  currentImageObj = null; currentImageData = null; rotationAngle = 0; lastProcessedPayload = null; isCropMode = false; originalImageData = null;
   if (cropRect) { cropRect.destroy(); cropRect = null; }
   cropTransformer.nodes([]); boxLayer.destroyChildren(); imageLayer.destroyChildren();
   document.getElementById('upload-area').classList.remove('hidden'); document.getElementById('workspace-area').classList.add('hidden'); document.getElementById('results-area').classList.add('hidden');

@@ -101,10 +101,18 @@ function initWorkspace(data) {
   boxLayer.draw();
 
   const img = new Image();
-  img.src = data.imageUrl; // সরাসরি Base64 স্ট্রিং ইউআরএল লোড
+  img.src = data.imageUrl;
   img.onload = function () {
     if (currentImageObj) currentImageObj.destroy();
-    currentImageObj = new Konva.Image({ x: 0, y: 0, image: img, width: data.width, height: data.height, id: 'backgroundImage' });
+    
+    currentImageObj = new Konva.Image({ 
+      x: 0, 
+      y: 0, 
+      image: img, 
+      width: data.width, 
+      height: data.height, 
+      id: 'backgroundImage' 
+    });
 
     imageLayer.destroyChildren();
     imageLayer.add(currentImageObj);
@@ -114,10 +122,11 @@ function initWorkspace(data) {
     boxLayer.moveToTop();
     cropTransformer.moveToTop();
 
-    fitToScreen();
     document.getElementById('workspace-area').classList.remove('hidden');
     document.getElementById('results-area').classList.add('hidden');
     document.getElementById('upload-area').classList.add('hidden');
+
+    fitToScreen(); 
     stage.batchDraw();
   };
 }
@@ -290,11 +299,31 @@ function displayResults(data) {
 }
 
 document.getElementById('btn-save').addEventListener('click', async () => {
-  if (!lastProcessedPayload) return; lastProcessedPayload.previewOnly = false;
+  if (!lastProcessedPayload) return;
+  
+  // previewOnly = false করার মানে হলো এবার ইমেজগুলো সাব-ফোল্ডারে রাইট হবে
+  lastProcessedPayload.previewOnly = false;
+
   try {
-    const res = await fetch(window.location.origin + '/process', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(lastProcessedPayload) });
-    const data = await res.json(); if (data.success) { alert(`Saved into: ${data.savedTo}`); resetAppToInitialState(); } else { alert("Save failed."); }
-  } catch (err) { alert("Save error."); }
+    const res = await fetch(window.location.origin + '/process', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(lastProcessedPayload)
+    });
+    
+    const data = await res.json();
+    
+    if (data.success) {
+      alert(`Successfully saved 32 images into: ${data.savedTo}`);
+      
+      window.location.reload(true); 
+      
+    } else {
+      alert("Save failed: " + data.message);
+    }
+  } catch (err) {
+    alert("Save error occurred.");
+  }
 });
 
 function resetAppToInitialState() {

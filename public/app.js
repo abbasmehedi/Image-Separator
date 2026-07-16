@@ -366,7 +366,7 @@ function constrainBounds(group) {
 
 document.getElementById('btn-process').addEventListener('click', async () => {
   const boxes = boxLayer.find('.boxGroup');
-  if (boxes.length !== 32) { showError("Error: Click 'Auto Arrange Grid' first."); return; }
+  if (boxes.length !== 32) { showError("Error: Click 'Add Boxes' first."); return; }
   const boxesPayload = boxes.map(g => {
     const rect = g.findOne('.rect');
     return { index: g.getAttr('boxIndex'), left: g.x(), top: g.y(), width: rect.width(), height: rect.height() };

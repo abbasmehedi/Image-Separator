@@ -33,7 +33,6 @@ const cropTransformer = new Konva.Transformer({
 });
 boxLayer.add(cropTransformer);
 
-// 💡 কাস্টম ১ সেকেন্ডের অটো-রিমুভ টোস্ট নোটিফিকেশন মেথড (লাল/সবুজ এবং কোনো OK বাটন নেই)
 function showToast(message, type = 'success') {
   const toastContainer = document.getElementById('toast-container');
   if (!toastContainer) return;
@@ -51,20 +50,18 @@ function showToast(message, type = 'success') {
   toast.style.transform = 'translateY(-20px)';
   
   if (type === 'success') {
-    toast.style.backgroundColor = '#22c55e'; // Green
+    toast.style.backgroundColor = '#22c55e';
   } else {
-    toast.style.backgroundColor = '#ef4444'; // Red
+    toast.style.backgroundColor = '#ef4444';
   }
 
   toastContainer.appendChild(toast);
 
-  // অ্যানিমেশন শো
   requestAnimationFrame(() => {
     toast.style.opacity = '1';
     toast.style.transform = 'translateY(0)';
   });
 
-  // ঠিক ১ সেকেন্ড (1000ms) পর কোনো বাটন ছাড়াই নিজে থেকে চলে যাবে
   setTimeout(() => {
     toast.style.opacity = '0';
     toast.style.transform = 'translateY(-20px)';
@@ -95,7 +92,7 @@ document.getElementById('file-input').addEventListener('change', (e) => {
 });
 
 function showError(msg) {
-  showToast(msg, 'error'); // ডিফল্ট লাল এরর টোস্ট নোটিফিকেশন
+  showToast(msg, 'error'); 
 }
 
 function handleFileSelection(file) {
@@ -125,7 +122,7 @@ function handleFileSelection(file) {
         if (res.success) {
           originalImageData = res; 
           initWorkspace(res);
-          showToast("Image uploaded successfully!", "success"); // সবুজ সাকসেস নোটিফিকেশন
+          showToast("Image uploaded successfully!", "success");
         }
         else showError(res.message);
       } catch (e) { showError("Parsing failed."); }
@@ -198,7 +195,29 @@ function updateZoom(factor) {
   stage.batchDraw();
 }
 
-stage.on('wheel', (e) => { e.evt.preventDefault(); updateZoom(e.evt.deltaY < 0 ? 1.1 : 0.9); });
+//stage.on('wheel', (e) => { e.evt.preventDefault(); updateZoom(e.evt.deltaY < 0 ? 1.1 : 0.9); });
+
+let isMouseDown = false;
+
+stage.on('mousedown touchstart', (e) => {
+  isMouseDown = true;
+  if (e.target === stage || e.target.id() === 'backgroundImage') {
+    isDraggingStage = true; 
+    lastPos = { x: e.evt.clientX || e.evt.touches[0].clientX, y: e.evt.clientY || e.evt.touches[0].clientY };
+  }
+});
+
+stage.on('mouseup touchend', () => { 
+  isMouseDown = false; 
+  isDraggingStage = false; 
+});
+
+stage.on('wheel', (e) => {
+  if (e.evt.shiftKey) {
+    e.evt.preventDefault();
+    updateZoom(e.evt.deltaY < 0 ? 1.1 : 0.9);
+  }
+});
 
 let isDraggingStage = false; let lastPos = { x: 0, y: 0 };
 stage.on('mousedown touchstart', (e) => {
@@ -265,7 +284,7 @@ document.getElementById('btn-crop-reset').addEventListener('click', () => {
   if (cropRect) { cropRect.destroy(); cropRect = null; }
   cropTransformer.nodes([]);
   initWorkspace(originalImageData);
-  showToast("Reverted to initial image successfully!", "success"); // রিসেটের পর গ্রিন টোস্ট
+  showToast("Reverted to initial image successfully!", "success");
 });
 
 document.getElementById('btn-crop-apply').addEventListener('click', async () => {
@@ -283,7 +302,7 @@ document.getElementById('btn-crop-apply').addEventListener('click', async () => 
       document.getElementById('btn-crop-reset').classList.add('hidden'); 
       document.getElementById('btn-crop-mode').textContent = "✂️ Crop Image"; 
       initWorkspace(data); 
-      showToast("Image cropped successfully!", "success"); // ক্রপ সাকসেস টোস্ট
+      showToast("Image cropped successfully!", "success");
     }
     else { showError(data.message || "Crop failed."); }
   } catch (err) { showError("Crop server error."); }
@@ -299,7 +318,6 @@ function generateBoxes() {
   const totalRows = rowLayout.length; 
   const rowH = imgH / totalRows;
   
-  // 💡 FIX 1: বক্সের সাইজ এবং কলামের গ্যাপ ৫ টি কলামের লেআউটের সাপেক্ষে ফিক্সড করা হলো
   const maxCols = 5;
   const colW = imgW / maxCols;
   
@@ -360,7 +378,7 @@ document.getElementById('btn-process').addEventListener('click', async () => {
     const data = await res.json(); 
     if (data.success) { 
       displayResults(data); 
-      showToast("Images processed successfully!", "success"); // প্রসেস সাকসেস টোস্ট
+      showToast("Images processed successfully!", "success");
     } else { showError(data.message); }
   } catch (err) { showError("Processing server error."); }
 });
@@ -383,7 +401,7 @@ document.getElementById('btn-save').addEventListener('click', async () => {
   const originalText = saveBtn.textContent;
 
   if (!window.showDirectoryPicker) {
-    showToast("Folder Picker unsupported. Downloading ZIP package.", "error"); // লাল ওয়ার্নিং টোস্ট
+    showToast("Folder Picker unsupported. Downloading ZIP package.", "error"); 
     return downloadAsZip();
   }
 
@@ -407,7 +425,7 @@ document.getElementById('btn-save').addEventListener('click', async () => {
       await writable.close();
     }
 
-    showToast(`Saved 32 images into "${dirHandle.name}"!`, "success"); // ফোল্ডার সেভ সাকসেস টোস্ট
+    showToast(`Saved 32 images into "${dirHandle.name}"!`, "success");
     setTimeout(() => { window.location.reload(); }, 1100);
   } catch (err) {
     console.error(err);
@@ -432,7 +450,7 @@ async function downloadAsZip() {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-    showToast("ZIP downloaded successfully!", "success"); // জিপ ডাউনলোড সাকসেস টোস্ট
+    showToast("ZIP downloaded successfully!", "success");
     setTimeout(() => { window.location.reload(); }, 1100);
   } catch (err) {
     showError("ZIP download failed.");

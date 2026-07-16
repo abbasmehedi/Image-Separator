@@ -90,7 +90,6 @@ app.post('/crop', async (req, res) => {
   }
 });
 
-// Shared logic: Cut out the 32 boxes directly without rotation
 async function generateCrops(imageUrl, boxes) {
   const base64Data = imageUrl.replace(/^data:image\/\w+;base64,/, "");
   const inputBuffer = Buffer.from(base64Data, 'base64');

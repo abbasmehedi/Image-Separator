@@ -1,18 +1,19 @@
 let currentImageObj = null;
 let currentImageData = null; 
-let rotationAngle = 0; 
+let originalImageData = null; 
 let lastProcessedPayload = null; 
+let lastProcessResult = null;
 let globalBoxSize = 50; 
-let originalImageData = null;
 
 let isCropMode = false;
 let cropRect = null;
 
 const container = document.getElementById('konva-container');
+
 const stage = new Konva.Stage({
   container: 'konva-container',
   width: container.offsetWidth || 1000,
-  height: 600,
+  height: container.offsetHeight || 650,
 });
 
 const imageLayer = new Konva.Layer();
@@ -24,9 +25,54 @@ const cropTransformer = new Konva.Transformer({
   nodes: [],
   keepRatio: false, 
   rotateEnabled: false,
-  enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'top-center', 'bottom-center', 'left-center', 'right-center'],
+  enabledAnchors: [
+    'top-left', 'top-center', 'top-right', 
+    'left-center', 'right-center', 
+    'bottom-left', 'bottom-center', 'bottom-right'
+  ],
 });
 boxLayer.add(cropTransformer);
+
+// 💡 কাস্টম ১ সেকেন্ডের অটো-রিমুভ টোস্ট নোটিফিকেশন মেথড (লাল/সবুজ এবং কোনো OK বাটন নেই)
+function showToast(message, type = 'success') {
+  const toastContainer = document.getElementById('toast-container');
+  if (!toastContainer) return;
+
+  const toast = document.createElement('div');
+  toast.textContent = message;
+  toast.style.padding = '12px 24px';
+  toast.style.borderRadius = '8px';
+  toast.style.color = '#ffffff';
+  toast.style.fontWeight = 'bold';
+  toast.style.fontSize = '1rem';
+  toast.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+  toast.style.transition = 'all 0.3s ease';
+  toast.style.opacity = '0';
+  toast.style.transform = 'translateY(-20px)';
+  
+  if (type === 'success') {
+    toast.style.backgroundColor = '#22c55e'; // Green
+  } else {
+    toast.style.backgroundColor = '#ef4444'; // Red
+  }
+
+  toastContainer.appendChild(toast);
+
+  // অ্যানিমেশন শো
+  requestAnimationFrame(() => {
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateY(0)';
+  });
+
+  // ঠিক ১ সেকেন্ড (1000ms) পর কোনো বাটন ছাড়াই নিজে থেকে চলে যাবে
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(-20px)';
+    setTimeout(() => {
+      toast.remove();
+    }, 300);
+  }, 1000);
+}
 
 stage.on('click tap', function (e) {
   if (isCropMode) return;
@@ -49,9 +95,7 @@ document.getElementById('file-input').addEventListener('change', (e) => {
 });
 
 function showError(msg) {
-  const errEl = document.getElementById('error-message');
-  errEl.textContent = msg;
-  errEl.classList.remove('hidden');
+  showToast(msg, 'error'); // ডিফল্ট লাল এরর টোস্ট নোটিফিকেশন
 }
 
 function handleFileSelection(file) {
@@ -78,7 +122,11 @@ function handleFileSelection(file) {
     if (xhr.status === 200) {
       try {
         const res = JSON.parse(xhr.responseText);
-        if (res.success) initWorkspace(res);
+        if (res.success) {
+          originalImageData = res; 
+          initWorkspace(res);
+          showToast("Image uploaded successfully!", "success"); // সবুজ সাকসেস নোটিফিকেশন
+        }
         else showError(res.message);
       } catch (e) { showError("Parsing failed."); }
     } else { showError("Upload failed."); }
@@ -89,12 +137,7 @@ function handleFileSelection(file) {
 }
 
 function initWorkspace(data) {
-  if (!originalImageData) {
-    originalImageData = data;
-  }
-
   currentImageData = data;
-  rotationAngle = 0;
   lastProcessedPayload = null;
   globalBoxSize = 50; 
   isCropMode = false;
@@ -106,15 +149,10 @@ function initWorkspace(data) {
   boxLayer.draw();
 
   const img = new Image();
-  img.src = data.imageUrl;
+  img.src = data.imageUrl; 
   img.onload = function () {
     if (currentImageObj) currentImageObj.destroy();
-    
-    currentImageObj = new Konva.Image({ 
-      x: 0, y: 0, image: img, 
-      width: data.width, height: data.height, 
-      id: 'backgroundImage' 
-    });
+    currentImageObj = new Konva.Image({ x: 0, y: 0, image: img, width: data.width, height: data.height, id: 'backgroundImage' });
 
     imageLayer.destroyChildren();
     imageLayer.add(currentImageObj);
@@ -128,21 +166,30 @@ function initWorkspace(data) {
     document.getElementById('results-area').classList.add('hidden');
     document.getElementById('upload-area').classList.add('hidden');
 
-    fitToScreen(); 
-    stage.batchDraw();
+    requestAnimationFrame(() => {
+      stage.width(container.offsetWidth || 1000);
+      stage.height(container.offsetHeight || 650);
+      fitToScreen();
+      stage.batchDraw();
+    });
   };
 }
 
 function fitToScreen() {
   if (!currentImageData) return;
-  const pad = 40; const cw = container.offsetWidth - pad; const ch = container.offsetHeight - pad;
-  const isRotatedOdd = (rotationAngle % 180 !== 0);
-  const w = isRotatedOdd ? currentImageData.height : currentImageData.width;
-  const h = isRotatedOdd ? currentImageData.width : currentImageData.height;
+  const pad = 40; 
+  const cw = container.offsetWidth - pad; 
+  const ch = container.offsetHeight - pad;
+  const w = currentImageData.width;
+  const h = currentImageData.height;
+  
   const scale = Math.min(cw / w, ch / h, 1);
   stage.scale({ x: scale, y: scale });
-  stage.x((container.offsetWidth - w * scale) / 2); stage.y((container.offsetHeight - h * scale) / 2);
-  applyRotationCoordinates();
+  stage.x((container.offsetWidth - w * scale) / 2); 
+  stage.y((container.offsetHeight - h * scale) / 2);
+  
+  boxLayer.moveToTop();
+  stage.batchDraw();
 }
 
 function updateZoom(factor) {
@@ -171,8 +218,6 @@ stage.on('mouseup touchend', () => { isDraggingStage = false; });
 document.getElementById('btn-zoom-in').addEventListener('click', () => updateZoom(1.2));
 document.getElementById('btn-zoom-out').addEventListener('click', () => updateZoom(0.8));
 document.getElementById('btn-fit').addEventListener('click', fitToScreen);
-document.getElementById('btn-rot-left').addEventListener('click', () => rotate(-90));
-document.getElementById('btn-rot-right').addEventListener('click', () => rotate(90));
 document.getElementById('btn-arrange-boxes').addEventListener('click', () => { if(!isCropMode) generateBoxes(); });
 document.getElementById('btn-clear-boxes').addEventListener('click', () => { if(!isCropMode) { boxLayer.find('.boxGroup').forEach(b=>b.destroy()); boxLayer.draw(); } });
 
@@ -187,49 +232,40 @@ document.getElementById('box-global-size').addEventListener('input', (e) => {
   boxLayer.draw();
 });
 
+function defaultCropRect() {
+  return {
+    x: currentImageData.width * 0.2, y: currentImageData.height * 0.2,
+    width: currentImageData.width * 0.6, height: currentImageData.height * 0.6,
+    fill: 'rgba(217, 119, 6, 0.15)', stroke: '#d97706', strokeWidth: 3, dash: [6, 6], draggable: true, id: 'cropRect'
+  };
+}
+
 document.getElementById('btn-crop-mode').addEventListener('click', () => {
   const applyBtn = document.getElementById('btn-crop-apply');
+  const resetBtn = document.getElementById('btn-crop-reset');
   const cropModeBtn = document.getElementById('btn-crop-mode');
-  
   if (!isCropMode) {
-    if (currentImageData !== originalImageData) {
-      const goBack = confirm("Do you want to revert to the original uncropped image?");
-      if (goBack) {
-        initWorkspace(originalImageData); 
-        return;
-      }
-    }
-
-    isCropMode = true; 
-    cropModeBtn.textContent = "❌ Cancel Crop"; 
-    applyBtn.classList.remove('hidden');
-    
+    isCropMode = true; cropModeBtn.textContent = "❌ Cancel Crop"; applyBtn.classList.remove('hidden'); resetBtn.classList.remove('hidden');
     boxLayer.find('.boxGroup').forEach(b => b.destroy());
-    
-    cropRect = new Konva.Rect({
-      x: currentImageData.width * 0.2, 
-      y: currentImageData.height * 0.2,
-      width: currentImageData.width * 0.6, 
-      height: currentImageData.height * 0.6,
-      fill: 'rgba(217, 119, 6, 0.15)', 
-      stroke: '#d97706', 
-      strokeWidth: 3, 
-      dash: [6, 6], 
-      draggable: true, 
-      id: 'cropRect'
-    });
-    
-    boxLayer.add(cropRect); 
-    cropTransformer.nodes([cropRect]); 
-    boxLayer.draw();
+    cropRect = new Konva.Rect(defaultCropRect());
+    boxLayer.add(cropRect); cropTransformer.nodes([cropRect]); boxLayer.draw();
   } else {
-    isCropMode = false; 
-    cropModeBtn.textContent = "✂️ Crop Image"; 
-    applyBtn.classList.add('hidden');
+    isCropMode = false; cropModeBtn.textContent = "✂️ Crop Image"; applyBtn.classList.add('hidden'); resetBtn.classList.add('hidden');
     if (cropRect) { cropRect.destroy(); cropRect = null; }
-    cropTransformer.nodes([]); 
-    boxLayer.draw();
+    cropTransformer.nodes([]); boxLayer.draw();
   }
+});
+
+document.getElementById('btn-crop-reset').addEventListener('click', () => {
+  if (!originalImageData) return;
+  isCropMode = false;
+  document.getElementById('btn-crop-apply').classList.add('hidden');
+  document.getElementById('btn-crop-reset').classList.add('hidden');
+  document.getElementById('btn-crop-mode').textContent = "✂️ Crop Image";
+  if (cropRect) { cropRect.destroy(); cropRect = null; }
+  cropTransformer.nodes([]);
+  initWorkspace(originalImageData);
+  showToast("Reverted to initial image successfully!", "success"); // রিসেটের পর গ্রিন টোস্ট
 });
 
 document.getElementById('btn-crop-apply').addEventListener('click', async () => {
@@ -242,43 +278,48 @@ document.getElementById('btn-crop-apply').addEventListener('click', async () => 
   try {
     const res = await fetch(window.location.origin + '/crop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     const data = await res.json();
-    if (data.success) { document.getElementById('btn-crop-apply').classList.add('hidden'); document.getElementById('btn-crop-mode').textContent = "✂️ Crop Image"; initWorkspace(data); }
-    else { alert(data.message || "Crop failed."); }
-  } catch (err) { alert("Crop error."); }
+    if (data.success) { 
+      document.getElementById('btn-crop-apply').classList.add('hidden'); 
+      document.getElementById('btn-crop-reset').classList.add('hidden'); 
+      document.getElementById('btn-crop-mode').textContent = "✂️ Crop Image"; 
+      initWorkspace(data); 
+      showToast("Image cropped successfully!", "success"); // ক্রপ সাকসেস টোস্ট
+    }
+    else { showError(data.message || "Crop failed."); }
+  } catch (err) { showError("Crop server error."); }
 });
-
-function rotate(angleShift) {
-  rotationAngle = (rotationAngle + angleShift) % 360; if (rotationAngle < 0) rotationAngle += 360;
-  applyRotationCoordinates(); fitToScreen();
-}
-
-function applyRotationCoordinates() {
-  if (!currentImageObj) return;
-  const w = currentImageData.width; const h = currentImageData.height;
-  if (rotationAngle === 0) { imageLayer.x(0).y(0).rotation(0); boxLayer.x(0).y(0).rotation(0); }
-  else if (rotationAngle === 90) { imageLayer.x(w).y(0).rotation(90); boxLayer.x(w).y(0).rotation(90); }
-  else if (rotationAngle === 180) { imageLayer.x(w).y(h).rotation(180); boxLayer.x(w).y(h).rotation(180); }
-  else if (rotationAngle === 270) { imageLayer.x(0).y(h).rotation(270); boxLayer.x(0).y(h).rotation(270); }
-  stage.batchDraw();
-}
 
 function generateBoxes() {
   if (!currentImageData || isCropMode) return;
   boxLayer.find('.boxGroup').forEach(b => b.destroy());
-  const imgW = currentImageData.width; const imgH = currentImageData.height;
-  const rowLayout = [5, 4, 4, 4, 5, 5, 5]; const totalRows = rowLayout.length; const rowH = imgH / totalRows;
   
-  let autoSize = Math.min(imgW / 5, rowH) * 0.75; if (autoSize < 25) autoSize = 25;
-  globalBoxSize = Math.round(autoSize); document.getElementById('box-global-size').value = globalBoxSize;
+  const imgW = currentImageData.width; 
+  const imgH = currentImageData.height;
+  const rowLayout = [5, 4, 4, 4, 5, 5, 5]; 
+  const totalRows = rowLayout.length; 
+  const rowH = imgH / totalRows;
+  
+  // 💡 FIX 1: বক্সের সাইজ এবং কলামের গ্যাপ ৫ টি কলামের লেআউটের সাপেক্ষে ফিক্সড করা হলো
+  const maxCols = 5;
+  const colW = imgW / maxCols;
+  
+  let autoSize = Math.min(colW, rowH) * 0.75; 
+  if (autoSize < 25) autoSize = 25;
+  globalBoxSize = Math.round(autoSize); 
+  document.getElementById('box-global-size').value = globalBoxSize;
 
   let index = 1;
   for (let r = 0; r < totalRows; r++) {
-    const colsInThisRow = rowLayout[r]; const colW = imgW / colsInThisRow;
+    const colsInThisRow = rowLayout[r];
     for (let c = 0; c < colsInThisRow; c++) {
       createBox(c * colW + (colW - globalBoxSize) / 2, r * rowH + (rowH - globalBoxSize) / 2, globalBoxSize, index++);
     }
   }
-  boxLayer.moveToTop(); cropTransformer.moveToTop(); boxLayer.draw(); stage.batchDraw();
+  
+  boxLayer.moveToTop(); 
+  cropTransformer.moveToTop(); 
+  boxLayer.draw(); 
+  stage.batchDraw();
 }
 
 function createBox(x, y, size, index) {
@@ -286,7 +327,14 @@ function createBox(x, y, size, index) {
   group.setAttr('boxIndex', index);
   const rect = new Konva.Rect({ width: size, height: size, fill: 'rgba(37, 99, 235, 0.25)', stroke: '#2563eb', strokeWidth: 2, name: 'rect' });
   const text = new Konva.Text({ text: index.toString(), fontSize: Math.max(12, size * 0.25), fontStyle: 'bold', fill: '#ffffff', align: 'center', verticalAlign: 'middle', width: size, height: size, name: 'text' });
-  group.add(rect); group.add(text); group.on('dragmove', () => constrainBounds(group)); boxLayer.add(group);
+  group.add(rect); group.add(text); 
+  
+  group.on('dragstart', () => {
+    group.moveToTop();
+  });
+  
+  group.on('dragmove', () => constrainBounds(group)); 
+  boxLayer.add(group);
 }
 
 function constrainBounds(group) {
@@ -300,20 +348,25 @@ function constrainBounds(group) {
 
 document.getElementById('btn-process').addEventListener('click', async () => {
   const boxes = boxLayer.find('.boxGroup');
-  if (boxes.length !== 32) { alert("Error: Click 'Auto Arrange Grid' first."); return; }
+  if (boxes.length !== 32) { showError("Error: Click 'Auto Arrange Grid' first."); return; }
   const boxesPayload = boxes.map(g => {
     const rect = g.findOne('.rect');
     return { index: g.getAttr('boxIndex'), left: g.x(), top: g.y(), width: rect.width(), height: rect.height() };
   });
   boxesPayload.sort((a, b) => a.index - b.index);
-  lastProcessedPayload = { imageUrl: currentImageData.imageUrl, rotation: rotationAngle, boxes: boxesPayload, previewOnly: true };
+  lastProcessedPayload = { imageUrl: currentImageData.imageUrl, boxes: boxesPayload };
   try {
     const res = await fetch(window.location.origin + '/process', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(lastProcessedPayload) });
-    const data = await res.json(); if (data.success) displayResults(data); else alert(data.message);
-  } catch (err) { alert("Processing error."); }
+    const data = await res.json(); 
+    if (data.success) { 
+      displayResults(data); 
+      showToast("Images processed successfully!", "success"); // প্রসেস সাকসেস টোস্ট
+    } else { showError(data.message); }
+  } catch (err) { showError("Processing server error."); }
 });
 
 function displayResults(data) {
+  lastProcessResult = data;
   const summaryPanel = document.getElementById('summary-panel');
   summaryPanel.innerHTML = `<div class="summary-item">Total Boxes: <strong>${data.generated}</strong></div><div class="summary-item">Status: <strong style="color: var(--accent)">Preview Mode</strong></div>`;
   const grid = document.getElementById('preview-grid'); grid.innerHTML = '';
@@ -325,39 +378,77 @@ function displayResults(data) {
 }
 
 document.getElementById('btn-save').addEventListener('click', async () => {
-  if (!lastProcessedPayload) return;
-  
-  // previewOnly = false করার মানে হলো এবার ইমেজগুলো সাব-ফোল্ডারে রাইট হবে
-  lastProcessedPayload.previewOnly = false;
+  if (!lastProcessResult) return;
+  const saveBtn = document.getElementById('btn-save');
+  const originalText = saveBtn.textContent;
+
+  if (!window.showDirectoryPicker) {
+    showToast("Folder Picker unsupported. Downloading ZIP package.", "error"); // লাল ওয়ার্নিং টোস্ট
+    return downloadAsZip();
+  }
+
+  let dirHandle;
+  try {
+    dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+  } catch (err) {
+    return; 
+  }
 
   try {
-    const res = await fetch(window.location.origin + '/process', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(lastProcessedPayload)
-    });
-    
-    const data = await res.json();
-    
-    if (data.success) {
-      alert(`Successfully saved 32 images into: ${data.savedTo}`);
-      
-      window.location.reload(true); 
-      
-    } else {
-      alert("Save failed: " + data.message);
+    saveBtn.textContent = "Saving...";
+    saveBtn.disabled = true;
+
+    for (const file of lastProcessResult.files) {
+      const subDirHandle = await dirHandle.getDirectoryHandle(file.index.toString(), { create: true });
+      const fileHandle = await subDirHandle.getFileHandle(file.filename, { create: true });
+      const writable = await fileHandle.createWritable();
+      const blob = await (await fetch(file.preview)).blob(); 
+      await writable.write(blob);
+      await writable.close();
     }
+
+    showToast(`Saved 32 images into "${dirHandle.name}"!`, "success"); // ফোল্ডার সেভ সাকসেস টোস্ট
+    setTimeout(() => { window.location.reload(); }, 1100);
   } catch (err) {
-    alert("Save error occurred.");
+    console.error(err);
+    showError("Folder operation failed: " + err.message);
+  } finally {
+    saveBtn.textContent = originalText;
+    saveBtn.disabled = false;
   }
 });
 
+async function downloadAsZip() {
+  if (!lastProcessedPayload) return;
+  try {
+    const res = await fetch(window.location.origin + '/download', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(lastProcessedPayload) });
+    if (!res.ok) throw new Error("Download failed");
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'image_separator_output.zip';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast("ZIP downloaded successfully!", "success"); // জিপ ডাউনলোড সাকসেস টোস্ট
+    setTimeout(() => { window.location.reload(); }, 1100);
+  } catch (err) {
+    showError("ZIP download failed.");
+  }
+}
+
 function resetAppToInitialState() {
-  currentImageObj = null; currentImageData = null; rotationAngle = 0; lastProcessedPayload = null; isCropMode = false; originalImageData = null;
+  currentImageObj = null; currentImageData = null; originalImageData = null; lastProcessedPayload = null; lastProcessResult = null; isCropMode = false;
   if (cropRect) { cropRect.destroy(); cropRect = null; }
   cropTransformer.nodes([]); boxLayer.destroyChildren(); imageLayer.destroyChildren();
   document.getElementById('upload-area').classList.remove('hidden'); document.getElementById('workspace-area').classList.add('hidden'); document.getElementById('results-area').classList.add('hidden');
   document.getElementById('file-input').value = ""; 
 }
 
-window.addEventListener('resize', () => { stage.width(container.offsetWidth || 1000); if (currentImageData) fitToScreen(); });
+window.addEventListener('resize', () => { 
+  stage.width(container.offsetWidth || 1000); 
+  stage.height(container.offsetHeight || 650);
+  if (currentImageData) fitToScreen(); 
+});

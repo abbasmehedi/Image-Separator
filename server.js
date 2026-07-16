@@ -5,10 +5,10 @@ const fs = require('fs');
 const sharp = require('sharp');
 const heicConvert = require('heic-convert');
 const cors = require('cors');
-const storageConfig = require('./storage.js');
+const archiver = require('archiver');
 
 const app = express();
-const PORT = 3005;
+const PORT = process.env.PORT || 3005;
 
 app.use(cors());
 
@@ -90,71 +90,81 @@ app.post('/crop', async (req, res) => {
   }
 });
 
+// Shared logic: Cut out the 32 boxes directly without rotation
+async function generateCrops(imageUrl, boxes) {
+  const base64Data = imageUrl.replace(/^data:image\/\w+;base64,/, "");
+  const inputBuffer = Buffer.from(base64Data, 'base64');
+
+  const now = new Date();
+  const timestamp = now.getFullYear().toString() + (now.getMonth() + 1).toString().padStart(2, '0') + now.getDate().toString().padStart(2, '0') + '_' + now.getHours().toString().padStart(2, '0') + now.getMinutes().toString().padStart(2, '0') + now.getSeconds().toString().padStart(2, '0');
+
+  const crops = [];
+
+  for (let i = 0; i < boxes.length; i++) {
+    const box = boxes[i];
+    let { left, top, width, height } = box;
+
+    let mappedLeft = Math.max(0, Math.round(left)); 
+    let mappedTop = Math.max(0, Math.round(top));
+    let mappedWidth = Math.max(25, Math.round(width)); 
+    let mappedHeight = Math.max(25, Math.round(height));
+
+    const cropBuffer = await sharp(inputBuffer)
+      .extract({ left: mappedLeft, top: mappedTop, width: mappedWidth, height: mappedHeight })
+      .resize(100, 100)
+      .png()
+      .toBuffer();
+
+    crops.push({ index: box.index, filename: `${box.index}_${timestamp}.png`, buffer: cropBuffer });
+  }
+
+  return crops;
+}
+
 app.post('/process', async (req, res) => {
   try {
-    const { imageUrl, rotation, boxes, previewOnly } = req.body;
+    const { imageUrl, boxes } = req.body;
     if (!imageUrl || !boxes || boxes.length !== 32) {
       return res.status(400).json({ success: false, message: "Invalid payload" });
     }
 
-    const base64Data = imageUrl.replace(/^data:image\/\w+;base64,/, "");
-    const inputBuffer = Buffer.from(base64Data, 'base64');
+    const crops = await generateCrops(imageUrl, boxes);
+    const filesResponse = crops.map(c => ({
+      index: c.index,
+      filename: c.filename,
+      preview: `data:image/png;base64,${c.buffer.toString('base64')}`
+    }));
 
-    let targetDir = storageConfig.outputDirectory || path.join(__dirname, 'output');
-    if (!previewOnly && !fs.existsSync(targetDir)) {
-      fs.mkdirSync(targetDir, { recursive: true });
-    }
-
-    const now = new Date();
-    const timestamp = now.getFullYear().toString() + (now.getMonth() + 1).toString().padStart(2, '0') + now.getDate().toString().padStart(2, '0') + '_' + now.getHours().toString().padStart(2, '0') + now.getMinutes().toString().padStart(2, '0') + now.getSeconds().toString().padStart(2, '0');
-
-    let pipeline = sharp(inputBuffer);
-    const metadata = await pipeline.metadata();
-    const origW = metadata.width; const origH = metadata.height;
-
-    const normalizedRotation = ((rotation % 360) + 360) % 360;
-    if (normalizedRotation !== 0) pipeline = pipeline.rotate(normalizedRotation);
-
-    const rotatedImageBuffer = await pipeline.toBuffer();
-    const filesResponse = [];
-
-    for (let i = 0; i < boxes.length; i++) {
-      const box = boxes[i];
-      let { left, top, width, height } = box;
-      let mappedLeft, mappedTop, mappedWidth, mappedHeight;
-
-      if (normalizedRotation === 0) { mappedLeft = left; mappedTop = top; mappedWidth = width; mappedHeight = height; } 
-      else if (normalizedRotation === 90) { mappedLeft = top; mappedTop = origW - (left + width); mappedWidth = height; mappedHeight = width; } 
-      else if (normalizedRotation === 180) { mappedLeft = origW - (left + width); mappedTop = origH - (top + height); mappedWidth = width; mappedHeight = height; } 
-      else if (normalizedRotation === 270) { mappedLeft = origH - (top + height); mappedTop = left; mappedWidth = height; mappedHeight = width; }
-
-      mappedLeft = Math.max(0, Math.round(mappedLeft)); mappedTop = Math.max(0, Math.round(mappedTop));
-      mappedWidth = Math.max(25, Math.round(mappedWidth)); mappedHeight = Math.max(25, Math.round(mappedHeight));
-
-      const cropBuffer = await sharp(rotatedImageBuffer)
-        .extract({ left: mappedLeft, top: mappedTop, width: mappedWidth, height: mappedHeight })
-        .resize(100, 100)
-        .png()
-        .toBuffer();
-
-      if (!previewOnly) {
-        const subDirectoryPath = path.join(targetDir, box.index.toString());
-        if (!fs.existsSync(subDirectoryPath)) fs.mkdirSync(subDirectoryPath, { recursive: true });
-        const filename = `${box.index}_${timestamp}.png`;
-        fs.writeFileSync(path.join(subDirectoryPath, filename), cropBuffer);
-      }
-
-      filesResponse.push({
-        index: box.index,
-        filename: `${box.index}_${timestamp}.png`,
-        preview: `data:image/png;base64,${cropBuffer.toString('base64')}`
-      });
-    }
-
-    res.json({ success: true, generated: 32, savedTo: targetDir, files: filesResponse });
+    res.json({ success: true, generated: filesResponse.length, files: filesResponse });
   } catch (error) {
     res.status(500).json({ success: false, message: "Processing failed" });
   }
 });
 
-app.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
+app.post('/download', async (req, res) => {
+  try {
+    const { imageUrl, boxes } = req.body;
+    if (!imageUrl || !boxes || boxes.length !== 32) {
+      return res.status(400).json({ success: false, message: "Invalid payload" });
+    }
+
+    const crops = await generateCrops(imageUrl, boxes);
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename="image_separator_output.zip"');
+
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    archive.on('error', (err) => { res.status(500).end(); });
+    archive.pipe(res);
+
+    for (const crop of crops) {
+      archive.append(crop.buffer, { name: `${crop.index}/${crop.filename}` });
+    }
+
+    await archive.finalize();
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Download failed" });
+  }
+});
+
+app.listen(PORT, () => console.log(`Server running on: http://localhost:${PORT}`));

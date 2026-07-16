@@ -3,11 +3,15 @@
   "version": "1.0.0",
   "description": "Local Image Separator Web Application",
   "main": "server.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js"
   },
   "dependencies": {
+    "archiver": "^7.0.1",
     "cors": "^2.8.5",
     "express": "^4.19.2",
     "heic-convert": "^2.1.0",
